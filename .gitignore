@@ -1,0 +1,15 @@
+# Compiled binaries
+*.o
+*.out
+Colleen
+Grace
+Sully
+
+# Output files
+output_*
+tmp_*
+
+# Editor backup files
+*~
+*.swp
+*.swo
