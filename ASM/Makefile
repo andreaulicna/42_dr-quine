@@ -6,7 +6,7 @@
 #    By: aulicna <aulicna@student.42prague.com>     +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/01/07 13:51:37 by aulicna           #+#    #+#              #
-#    Updated: 2025/10/20 23:37:33 by aulicna          ###   ########.fr        #
+#    Updated: 2025/10/21 01:49:12 by aulicna          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,26 +16,35 @@ CC       = gcc
 LDFLAGS  = -no-pie
 RM       = rm -f
 
-SRCS = Colleen.s Grace.s
+SRCS = Colleen.s Grace.s Sully.s
 OBJS = $(SRCS:.s=.o)
-BINS = Colleen Grace
+BINS = Colleen Grace Sully
 
 all: $(BINS)
 
 Colleen: Colleen.o
-	$(CC) $(LDFLAGS) $^ -o $@
+	@echo "Linking Colleen..."
+	@$(CC) $(LDFLAGS) $^ -o $@
 
 Grace: Grace.o
-	$(CC) $(LDFLAGS) $^ -o $@
+	@echo "Linking Grace..."
+	@$(CC) $(LDFLAGS) $^ -o $@
+
+Sully: Sully.o
+	@echo "Linking Sully..."
+	@$(CC) $(LDFLAGS) $^ -o $@
 
 %.o: %.s
-	$(ASM) $(ASMFLAGS) $< -o $@
+	@echo "Assembling $<..."
+	@$(ASM) $(ASMFLAGS) $< -o $@
 
 clean:
-	$(RM) $(OBJS)
+	@echo "Cleaning object files..."
+	@$(RM) $(OBJS)
 
 fclean: clean
-	$(RM) $(BINS) tmp_Colleen Grace_kid.s
+	@echo "Removing binaries and generated files..."
+	@$(RM) $(BINS) tmp_Colleen Grace_kid.s Sully_*.s Sully_*
 
 re: fclean all
 

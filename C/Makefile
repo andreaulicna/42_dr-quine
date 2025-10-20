@@ -6,7 +6,7 @@
 #    By: aulicna <aulicna@student.42prague.com>     +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/01/07 13:51:37 by aulicna           #+#    #+#              #
-#    Updated: 2025/10/19 12:39:18 by aulicna          ###   ########.fr        #
+#    Updated: 2025/10/21 01:50:50 by aulicna          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -33,30 +33,38 @@ all: $(NAME1) $(NAME2) $(NAME3)
 
 # Colleen
 $(NAME1): $(OBJ1)
-	$(CC) $(CFLAGS) -o $(NAME1) $(OBJ1)
+	@echo "Linking Colleen..."
+	@$(CC) $(CFLAGS) -o $(NAME1) $(OBJ1)
 
 $(OBJ1): $(SRC1)
-	$(CC) $(CFLAGS) -c $(SRC1) -o $(OBJ1)
+	@echo "Compiling Colleen.c..."
+	@$(CC) $(CFLAGS) -c $(SRC1) -o $(OBJ1)
 
 # Grace
 $(NAME2): $(OBJ2)
-	$(CC) $(CFLAGS) -o $(NAME2) $(OBJ2)
+	@echo "Linking Grace..."
+	@$(CC) $(CFLAGS) -o $(NAME2) $(OBJ2)
 
 $(OBJ2): $(SRC2)
-	$(CC) $(CFLAGS) -c $(SRC2) -o $(OBJ2)
+	@echo "Compiling Grace.c..."
+	@$(CC) $(CFLAGS) -c $(SRC2) -o $(OBJ2)
 
 # Sully
 $(NAME3): $(OBJ3)
-	$(CC) $(CFLAGS) -o $(NAME3) $(OBJ3)
+	@echo "Linking Sully..."
+	@$(CC) $(CFLAGS) -o $(NAME3) $(OBJ3)
 
 $(OBJ3): $(SRC3)
-	$(CC) $(CFLAGS) -c $(SRC3) -o $(OBJ3)
+	@echo "Compiling Sully.c..."
+	@$(CC) $(CFLAGS) -c $(SRC3) -o $(OBJ3)
 	
 clean:
-	$(RM) $(OBJ1) $(OBJ2) $(OBJ3)
+	@echo "Cleaning object files..."
+	@$(RM) $(OBJ1) $(OBJ2) $(OBJ3)
 
 fclean: clean
-	$(RM) $(NAME1) $(NAME2) $(NAME3) $(COLLEEN_OUTPUT) $(GRACE_OUTPUT) $(SULLY_OUTPUT)
+	@echo "Removing binaries and generated files..."
+	@$(RM) $(NAME1) $(NAME2) $(NAME3) $(COLLEEN_OUTPUT) $(GRACE_OUTPUT) $(SULLY_OUTPUT)
 
 re: fclean all
 

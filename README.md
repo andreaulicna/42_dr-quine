@@ -1,5 +1,15 @@
 # 42_dr-quine
 
+A collection of self-replicating programs (quines) written in C and x86-64 assembly. Each program demonstrates different techniques for self-reproduction:
+
+- **Colleen**: Basic quine that prints its own source code to stdout
+- **Grace**: Quine that writes its source code to a file
+- **Sully**: Recursive quine that generates, compiles, and executes decreasing copies of itself
+
+All programs use positional printf format specifiers to embed their source code within themselves, creating perfect self-replicas.
+
+---
+
 <details>
 <summary><strong>Colleen (C quine)</strong></summary>
 
@@ -592,7 +602,272 @@ diff -u Grace.s Grace_kid.s
 
 </details>
 
-### Sources
+<br>
+
+<details>
+<summary><strong>Sully (ASM quine)</strong></summary>
+
+Sully repeatedly writes, compiles, and runs copies of itself with a decreasing counter. It starts at 5 and stops after producing Sully_0 (13 files total: 1 original binary + 5 sources + 5 binaries + the original source).
+
+### What the program does
+
+- Initializes a counter `i = 5` in the data section.
+- Immediately decrements: `i--` so the first child is `Sully_4`.
+- Stops if `i < 0` (prevents generating `Sully_-1`).
+- Writes a new assembly file named `Sully_<i>.s` containing:
+  - The full program as a single fprintf-format string.
+  - The current value of `i` embedded inside that string.
+  - The same logic (decrement, stop checks, compile, run).
+- Compiles that file to an executable named `Sully_<i>`.
+- Runs the new executable (which continues the chain).
+
+Execution chain:
+```
+./Sully  →  Sully_4.s → ./Sully_4 → Sully_3.s → ./Sully_3 → … → Sully_0.s (stop)
+```
+
+### Architecture Overview
+
+**Memory sections:**
+- `.data`: Initialized data (counter `i`, format strings)
+- `.bss`: Uninitialized buffers (filename buffers, command buffers)
+- `.text`: Executable code (main function)
+- `.rodata`: Read-only data (the template string `tpl`)
+
+**Registers used:**
+- `r12d`: Holds the decremented counter value
+- `r13`: Holds the file pointer from fopen
+- `rbp`: Base pointer (stack frame)
+- `rsp`: Stack pointer
+
+### Detailed Code Breakdown
+
+#### Macros and Declarations
+```asm
+; Don't panic!
+%define NEWLINE 10
+%define QUOTE 34
+%define TAB 9
+```
+- Macros for ASCII values of special characters.
+
+```asm
+global main
+extern fopen
+extern fprintf
+extern fclose
+extern sprintf
+extern system
+```
+- `global main`: Entry point.
+- `extern` declarations: Links to C standard library functions.
+
+#### Data Section
+```asm
+section .data
+i dd 5
+src_format db "Sully_%d.s",0
+exec_format db "Sully_%d",0
+mode db "w",0
+compile_format db "nasm -f elf64 %1$s -o %2$s.o && gcc -no-pie %2$s.o -o %2$s && rm %2$s.o",0
+run_format db "./%s",0
+```
+- `i dd 5`: Counter initialized to 5 (dword = 32-bit integer).
+- Format strings for filenames and shell commands.
+- `%1$s`, `%2$s`: Positional parameters for sprintf (avoids needing more arguments).
+
+#### BSS Section (Uninitialized Buffers)
+```asm
+section .bss
+new_src_file resb 100
+new_exec resb 100
+compile_cmd resb 400
+run_cmd resb 200
+```
+- `resb`: Reserve bytes (uninitialized).
+- Buffers to hold generated filenames and shell commands.
+
+#### Main Function - Setup
+```asm
+main:
+    push rbp
+    mov rbp,rsp
+    push r12
+    push r13
+```
+- Standard function prologue: save base pointer and callee-saved registers.
+
+#### Decrement and Stop Check
+```asm
+    mov r12d,dword [rel i]
+    dec r12d
+    cmp r12d,0
+    jl .end
+```
+- Load counter into `r12d` (32-bit portion of r12).
+- Decrement immediately (first child will be Sully_4).
+- Compare with 0.
+- Jump to end if less than 0 (stops at Sully_0, prevents Sully_-1).
+
+#### Generate Source Filename
+```asm
+    lea rdi,[rel new_src_file]
+    lea rsi,[rel src_format]
+    mov edx,r12d
+    xor eax,eax
+    call sprintf
+```
+- `sprintf(new_src_file, "Sully_%d.s", r12d)`
+- Result: `new_src_file` = "Sully_4.s" (for first iteration)
+
+#### Generate Executable Filename
+```asm
+    lea rdi,[rel new_exec]
+    lea rsi,[rel exec_format]
+    mov edx,r12d
+    xor eax,eax
+    call sprintf
+```
+- `sprintf(new_exec, "Sully_%d", r12d)`
+- Result: `new_exec` = "Sully_4"
+
+#### Open File for Writing
+```asm
+    lea rdi,[rel new_src_file]
+    lea rsi,[rel mode]
+    call fopen
+    test rax,rax
+    jz .end
+    mov r13,rax
+```
+- `fopen(new_src_file, "w")`
+- Returns file pointer in `rax`.
+- Check if NULL (file open failed), jump to end if so.
+- Save file pointer in `r13`.
+
+#### Write Source Code to File
+```asm
+    mov rdi,r13
+    lea rsi,[rel tpl]
+    mov edx,NEWLINE
+    mov ecx,QUOTE
+    mov r8d,r12d
+    lea r9,[rel tpl]
+    xor eax,eax
+    call fprintf
+```
+- `fprintf(file, tpl, NEWLINE, QUOTE, r12d, tpl)`
+- Arguments:
+  - `rdi` = file pointer
+  - `rsi` = format string (tpl)
+  - `edx` = NEWLINE (for %1$c)
+  - `ecx` = QUOTE (for %2$c)
+  - `r8d` = counter value (for %3$d)
+  - `r9` = address of tpl (for %4$s - the quine part)
+
+Mapping inside `tpl`:
+- `%1$c` → 10 → newline
+- `%2$c` → 34 → quote
+- `%3$d` → r12d → current counter value
+- `%4$s` → tpl → the full format string (self-reproduction)
+
+#### Close File
+```asm
+    mov rdi,r13
+    call fclose
+```
+
+#### Compile the New Source
+```asm
+    lea rdi,[rel compile_cmd]
+    lea rsi,[rel compile_format]
+    lea rdx,[rel new_src_file]
+    lea rcx,[rel new_exec]
+    xor eax,eax
+    call sprintf
+    lea rdi,[rel compile_cmd]
+    call system
+```
+- Build shell command: `nasm -f elf64 Sully_4.s -o Sully_4.o && gcc -no-pie Sully_4.o -o Sully_4 && rm Sully_4.o`
+- Execute via `system()`
+
+#### Run the New Executable
+```asm
+    lea rdi,[rel run_cmd]
+    lea rsi,[rel run_format]
+    lea rdx,[rel new_exec]
+    xor eax,eax
+    call sprintf
+    lea rdi,[rel run_cmd]
+    call system
+```
+- Build shell command: `./Sully_4`
+- Execute via `system()` (which triggers the next iteration)
+
+#### Cleanup and Return
+```asm
+.end:
+    pop r13
+    pop r12
+    pop rbp
+    xor rax,rax
+    ret
+```
+- Restore saved registers.
+- Set return value to 0.
+- Return from main.
+
+#### The Template String
+```asm
+section .rodata
+tpl db "; ...",0
+```
+- Contains the entire program as a single format string.
+- Uses `%%` to escape `%` in the output (so `%%define` becomes `%define`).
+- `%1$c`, `%2$c`, `%3$d`, `%4$s`: Positional parameters for fprintf.
+- The string reproduces itself via `%4$s` → `tpl`.
+
+#### Security Section
+```asm
+section .note.GNU-stack noalloc noexec nowrite progbits
+```
+- Marks the stack as non-executable (security feature).
+
+### Build and verify
+
+**Assemble and link:**
+```bash
+nasm -f elf64 Sully.s -o Sully.o
+gcc -no-pie Sully.o -o Sully
+```
+
+**Run:**
+```bash
+./Sully
+```
+
+**Count files (expect 13):**
+```bash
+ls -1 | grep Sully | wc -l
+```
+
+**Verify only counter changes:**
+```bash
+diff Sully.s Sully_0.s
+# Expected: line 14 changes from "i dd 5" to "i dd 0"
+```
+
+**Detailed diff:**
+```bash
+diff -u Sully.s Sully_0.s
+```
+
+</details>
+
+<br>
+
+<details>
+<summary><strong>Sources</strong></summary>
 
 - [NASM Documentation](https://nasm.us/doc/)
 - [x86-64 System V ABI](https://refspecs.linuxfoundation.org/elf/x86_64-abi-0.99.pdf)
